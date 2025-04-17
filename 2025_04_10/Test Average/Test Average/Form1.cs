@@ -22,7 +22,12 @@ namespace Test_Average
         // and returns the Average of the values in the array.
         private int Average(   )
         {
-            
+            int total = 0;
+            foreach (int score in score) 
+            {
+                total += score;
+            }
+            return;
         }
 
         // The Highest method accepts an int array argument
@@ -55,9 +60,9 @@ namespace Test_Average
 
             try
             {
-                if(openFileDialog1.ShowDialog() == DialogResult.OK)
+                if(openFileDialog1).ShowDialog() == DialogResult.OK)
                 {
-                    // Open the file.
+                    // 打開文件.
                     inputFile = File.OpenText(openFileDialog1.FileName);
                     // Read the values from the file into the array.
                     while (inde < SIZE && !inputFile.EndOfStream)
