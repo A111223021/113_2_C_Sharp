@@ -1,0 +1,296 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+
+namespace Program7_5
+{
+    public partial class Form1 : Form
+    {
+        // 儲存所有球隊名稱（包含新增後）
+        List<string> teams = new List<string>();
+        // 儲存所有世界大賽冠軍球隊（依年份順序）
+        List<string> winners = new List<string>();
+        // 儲存對應的年份（與 winners 一一對應）
+        List<int> years = new List<int>();
+        // 記錄原始球隊名單（僅第一次讀取 Teams.txt 時的隊伍）
+        List<string> originalTeams = new List<string>();
+
+        // 原始冠軍資料檔路徑（用於覆寫 WorldSeries_Chinese.txt）
+        string originalWinnersPath = "";
+        // 原始隊伍檔案路徑（目前未使用，但可擴充）
+        string teamListPath = "";
+        // 新增隊伍要存入的檔案
+        string newTeamOutputPath = "MLB_Teams_Translated.txt";
+
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // 表單載入時執行：選取隊伍與冠軍資料
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            MessageBox.Show("請先選擇球隊資料檔案", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (!ReadTeams()) return;
+
+            MessageBox.Show("再選擇世界大賽冠軍資料檔案", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (!ReadWinners()) return;
+
+            UpdateTeamList();
+        }
+
+        // 讀取球隊資料（Teams.txt）
+        private bool ReadTeams()
+        {
+            try
+            {
+                OpenFileDialog dialog = new OpenFileDialog();
+                dialog.Title = "請選擇 Teams.txt 檔案";
+                dialog.Filter = "文字檔案 (*.txt)|*.txt";
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    teamListPath = dialog.FileName;
+                    teams.Clear();
+                    listBox1.Items.Clear();
+
+                    using (StreamReader sr = new StreamReader(dialog.FileName))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (!teams.Contains(line))
+                            {
+                                teams.Add(line); // 加入不重複球隊（保留順序）
+                            }
+                        }
+                    }
+
+                    // 初始化原始球隊清單（只記錄第一次載入）
+                    originalTeams = new List<string>(teams);
+
+                    UpdateTeamList();
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show("未選擇檔案，程式即將結束。");
+                    this.Close();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("讀取球隊檔案時發生錯誤：" + ex.Message);
+                return false;
+            }
+        }
+
+        // 讀取冠軍隊伍資料（WorldSeries_Chinese.txt）
+        private bool ReadWinners()
+        {
+            try
+            {
+                OpenFileDialog dialog = new OpenFileDialog();
+                dialog.Title = "請選擇 WorldSeries.txt 檔案";
+                dialog.Filter = "文字檔案 (*.txt)|*.txt";
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    originalWinnersPath = dialog.FileName;
+
+                    winners.Clear();
+                    years.Clear();
+
+                    using (StreamReader sr = new StreamReader(dialog.FileName))
+                    {
+                        int year = 1903;
+                        string line;
+
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (year == 1904 || year == 1994)
+                                year++; // 跳過未舉辦年份
+
+                            winners.Add(line);
+                            years.Add(year);
+                            year++;
+                        }
+                    }
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show("未選擇檔案，程式結束。");
+                    this.Close();
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("讀取冠軍檔案時發生錯誤：" + ex.Message);
+                return false;
+            }
+        }
+
+        // 更新 listBox 顯示內容，保留順序並加上編號
+        private void UpdateTeamList()
+        {
+            listBox1.Items.Clear();
+            for (int i = 0; i < teams.Count; i++)
+            {
+                listBox1.Items.Add($"{i + 1}.{teams[i]}隊");
+            }
+        }
+
+        // 點選球隊後，顯示該隊奪冠次數與年份
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (listBox1.SelectedIndex < 0) return;
+
+            string fullText = listBox1.SelectedItem.ToString();
+            int dotIndex = fullText.IndexOf('.');
+            string teamName = fullText.Substring(dotIndex + 1).Replace("隊", "");
+
+            List<int> winYears = new List<int>();
+
+            for (int i = 0; i < winners.Count; i++)
+            {
+                if (winners[i] == teamName)
+                    winYears.Add(years[i]);
+            }
+
+            if (winYears.Count > 0)
+            {
+                winYears.Sort();
+                string yearList = string.Join(", ", winYears);
+
+                if (winYears.Count == 1)
+                {
+                    label1.Text = $"{teamName}隊於 {winYears[0]} 年獲得 1 次世界冠軍。\n年份：{yearList}";
+                }
+                else
+                {
+                    int minYear = winYears.First();
+                    int maxYear = winYears.Last();
+                    label1.Text = $"{teamName}隊 從 {minYear} 年至 {maxYear} 年，共贏得 {winYears.Count} 次世界冠軍。\n年份：{yearList}";
+                }
+            }
+            else
+            {
+                label1.Text = $"{teamName}隊 尚未贏得世界冠軍。";
+            }
+        }
+
+        // 點選「新增」後，加入新冠軍資料與新隊伍
+        private void Addbutton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OpenFileDialog dialog = new OpenFileDialog();
+                dialog.Title = "請選擇 2010 年以後的世界大賽資料";
+                dialog.Filter = "文字檔案 (*.txt)|*.txt";
+
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    List<string> newWinners = new List<string>();
+                    List<string> newTeams = new List<string>();
+
+                    using (StreamReader sr = new StreamReader(dialog.FileName))
+                    {
+                        int startYear = 2010;
+
+                        // 如果已經有年份 >= 2010，就從最大年份 + 1 開始
+                        int maxYear = years.Count > 0 ? years.Max() : 0;
+                        if (maxYear >= 2010)
+                            startYear = maxYear + 1;
+
+
+                        string line;
+
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            winners.Add(line);
+                            years.Add(startYear);
+                            newWinners.Add(line);
+
+                            if (!teams.Contains(line))
+                                teams.Add(line);
+
+                            if (!originalTeams.Contains(line) && !newTeams.Contains(line))
+                                newTeams.Add(line);
+
+                            startYear++; // 每行一個年份
+                        }
+
+                    }
+
+                    UpdateTeamList();
+
+                    // 將新隊伍寫入目標檔案
+                    if (newTeams.Count > 0)
+                    {
+                        using (StreamWriter sw = new StreamWriter(newTeamOutputPath, true))
+                        {
+                            foreach (string team in newTeams)
+                            {
+                                sw.WriteLine(team);
+                            }
+                        }
+
+                        // 避免重複新增
+                        originalTeams.AddRange(newTeams);
+                    }
+
+                    // 將新增冠軍寫回原始檔案
+                    if (!string.IsNullOrEmpty(originalWinnersPath))
+                    {
+                        using (StreamWriter sw = new StreamWriter(originalWinnersPath, true))
+                        {
+                            foreach (string team in newWinners)
+                            {
+                                sw.WriteLine(team);
+                            }
+                        }
+                    }
+
+                    MessageBox.Show($"新增完成！\n新隊伍數：{newTeams.Count}\n新增冠軍數：{newWinners.Count}");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("新增資料時發生錯誤：" + ex.Message);
+            }
+        }
+
+        // 離開按鈕：將目前的 winners 資料寫回原始冠軍檔案
+        private void Exitbutton_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(originalWinnersPath))
+                {
+                    MessageBox.Show("無法儲存：未記錄原始冠軍資料檔案路徑。", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+
+                using (StreamWriter sw = new StreamWriter(originalWinnersPath))
+                {
+                    foreach (string winner in winners)
+                    {
+                        sw.WriteLine(winner);
+                    }
+                }
+
+                MessageBox.Show("資料已成功儲存至原始檔案，程式即將結束。", "儲存成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Application.Exit();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("儲存檔案時發生錯誤：" + ex.Message);
+            }
+        }
+    }
+}
